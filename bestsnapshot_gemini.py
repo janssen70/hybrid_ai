@@ -139,6 +139,7 @@ class FileStorage:
       if os.path.exists(self.counter_file):
          with open(self.counter_file, 'rt') as f:
             self.img_counter = int(f.read())
+            print(f'Resuming storage at image {self.img_counter}')
 
 
    def store_image(self, label: str, image_data: bytes):
@@ -153,7 +154,7 @@ class FileStorage:
          self.img_counter += 1
       return filename
 
-   def stop(self):
+   def stop(self, sig, frame):
       """
       Help orderly shutdown. Call as part of SIGINT handling
       """
@@ -301,7 +302,7 @@ if __name__ == '__main__':
    # 2 - YOUR MQTT BROKER DETAILS HERE
    # hivemq.com, for example. This example uses a local Mosquitto install
    client.username_pw_set("admin_user", "Admin01@")
-   client.connect("192.168.2.8", 1883)
+   client.connect("127.0.0.1", 1883)
 
    # setting callbacks, to give a basic feedbacm
    client.on_subscribe = on_subscribe
