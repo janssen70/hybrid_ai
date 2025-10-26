@@ -1,4 +1,5 @@
 *~
+*.swp
 images/
 environment.env
 

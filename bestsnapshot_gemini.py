@@ -24,6 +24,9 @@ from abc import ABC, abstractmethod
 from signal import signal, SIGINT
 from sys import exit
 import os
+import argparse
+
+from dotenv import load_dotenv
 
 # import google.generativeai as genai
 from google import genai
@@ -282,11 +285,25 @@ class TrackHandler(MQTTMessageHandler):
 
 if __name__ == '__main__':
 
+   # Preload environment settings
+   load_dotenv('environment.env')
+   if not os.getenv('MQTT_HOST'):
+      os.environ['MQTT_HOST'] = '127.0.0.1'
+
+   # Get settings from commandline
+   parser = argparse.ArgumentParser(description = 'Send Best snapshots to Gemini')
+   parser.add_argument('-k', '--api_key', type=str, required=True, default = os.getenv('GEMINI_API_KEY', help='Gemini API key for authentication')
+   parser.add_argument('-u', '--mqtt_username', type=str, required=True, default = os.getenv('MQTT_USER'), help='Username for MQTT broker')
+   parser.add_argument('-p', '--mqtt_password', type=str, required=True, default = os.getenv('MQTT_PASS'), help='Password for MQTT broker')
+   parser.add_argument('-h', '--mqtt_host', type=str, required=True, default = os.getenv('MQTT_HOST'), help='Hostname or IP address of MQTT broker')
+   parser.add_argument('-t', '--mqtt_topic', type=str, required=True, default = os.getenv('MQTT_TOPIC', 'track_topic'), help='Hostname or IP address of MQTT broker')
+   args = parser.parse_args()
+
    # 1 - Initialize Gemini connection
    #     See: https://ai.google.dev/gemini-api/docs/api-key#set-api-env-var
 
    print('Initializing genai...')
-   gemini = genai.Client()
+   gemini = genai.Client(api_key = args.api_key)
 
    print('Initializing snapshot-storage...')
    storage = FileStorage('images')
@@ -298,19 +315,14 @@ if __name__ == '__main__':
    client.on_connect = on_connect
 
    # Note: working with unsecured MQTT for simplicity
-
-   # 2 - YOUR MQTT BROKER DETAILS HERE
-   # hivemq.com, for example. This example uses a local Mosquitto install
-   client.username_pw_set("admin_user", "Admin01@")
-   client.connect("127.0.0.1", 1883)
+   client.username_pw_set(args.mqtt_username, args.mqtt_password)
+   client.connect(args.mqtt_host, 1883)
 
    # setting callbacks, to give a basic feedbacm
    client.on_subscribe = on_subscribe
    client.on_message = on_message
    client.on_publish = on_publish
-
-   # 3 - THE NAME OF YOUR CONSOLIDATED METADATA MQTT TOPIC HERE
-   client.subscribe("track_topic")
+   client.subscribe(args.mqtt_topic)
 
    print('Entering loop')
    # you can also use loop_start and loop_stop
