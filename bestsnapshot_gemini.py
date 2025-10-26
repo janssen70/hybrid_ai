@@ -25,6 +25,8 @@ from signal import signal, SIGINT
 from sys import exit
 import os
 import argparse
+import datetime
+import atexit
 
 from dotenv import load_dotenv
 
@@ -51,6 +53,29 @@ def percentage(string_value):
    else:
       decimal_value = float(string_value)
    return f"{decimal_value * 100:.2f}%"
+
+def ask_gemini(prompt: str, image_data: bytes):
+   """
+   Note: Free tier gemini-2.5-flash has 250 per day rate limit
+   """
+   response = gemini.models.generate_content(
+    # model='gemini-2.5-flash',
+      model='gemini-2.5-flash-lite',
+      contents=[
+         types.Part.from_bytes(
+           data = image_data,
+           mime_type = 'image/jpeg'
+         ),
+         prompt
+      ]
+   )
+   return response
+
+def handle_sigint(sig, frame):
+   """
+   """
+   print('Bye')
+   exit(0)
 
 #-------------------------------------------------------------------------------
 #
@@ -137,6 +162,9 @@ class FileStorage:
       else:
          if os.path.isfile(location):
             raise FileExistsError(location)
+         if not os.access(location, os.W_OK):
+            raise Exception(f'Path not writeable: {location}')
+
       self.base = location
       self.counter_file = os.path.join(location, 'index')
       if os.path.exists(self.counter_file):
@@ -144,9 +172,11 @@ class FileStorage:
             self.img_counter = int(f.read())
             print(f'Resuming storage at image {self.img_counter}')
 
+      atexit.register(self.cleanup)
 
    def store_image(self, label: str, image_data: bytes):
-
+      """
+      """
       filename = None
       if image_data is not None:
          path = os.path.join(self.base, f'{ self.img_counter // 1024:04}')
@@ -157,14 +187,13 @@ class FileStorage:
          self.img_counter += 1
       return filename
 
-   def stop(self, sig, frame):
+   def cleanup(self):
       """
-      Help orderly shutdown. Call as part of SIGINT handling
+      Help orderly shutdown
       """
       with open(self.counter_file, 'wt') as f:
          f.write(str(self.img_counter))
-      print('Terminated')
-      exit(0)
+      print('Closed storage')
 
 #-------------------------------------------------------------------------------
 #
@@ -172,13 +201,27 @@ class FileStorage:
 #
 #-------------------------------------------------------------------------------
 
-class TrackHandler(MQTTMessageHandler):
+class TracksHandler(MQTTMessageHandler):
    """
+   Sends snapshots to Gemini and keeps a log of the results
+   Saves the snapshots
    """
    def __init__(self, storage : FileStorage):
       super().__init__()
       self.img_counter = 0
       self.storage = storage
+      self.logname = f'{storage.base}/{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")}.log'
+      self.logfile = open(self.logname, 'w')
+      atexit.register(self.cleanup)
+
+   def cleanup(self):
+      self.logfile.close()
+      print('Closed log')
+
+   def log(self, content):
+      print(content)
+      self.logfile.write(content)
+      self.logfile.write('\n')
 
    def handle(self, msg : mqtt.client.MQTTMessage):
 
@@ -200,9 +243,6 @@ class TrackHandler(MQTTMessageHandler):
 
           mclassrank = str(best_class['score'])
 
-          # Best snapshot needs to be enabled on the camera
-          # See: https://developer.axis.com/analytics/axis-scene-metadata/how-to-guides/best-snapshot-start/
-
           if image_data is not None:
              filename = self.storage.store_image(mclass, image_data)
 
@@ -221,8 +261,8 @@ class TrackHandler(MQTTMessageHandler):
           if ((mclass == 'Car') or (mclass == 'Truck') or (mclass == 'Bus') or (mclass == 'Vehicle')):
 
               try:
-                  # Workaround for odd issue with short-lived objects in my scene
-                  # ... only display metadata if a car has been tracked for more
+                  # Workaround for odd issue with short-lived objects
+                  # only display metadata if a car has been tracked for more
                   # than 2 seconds
                   if fduration > 2:
                       pass
@@ -236,54 +276,34 @@ class TrackHandler(MQTTMessageHandler):
 
                       #now for some Gemini magic...
                       # prompt = 'Please tell me the make, model, trim, color, and estimated year of the ' + mclass + ' shown in this picture, as well as any other interesting characteristics or attributes. Do not share your reasoning. Format your response as succinctly as possible.'
+                      # response = ask_gemini(prompt, image_data)
 
-                      # r = gemini.generate_content([{'mime_type':'image/jpeg', 'data': image_data}, prompt])
-                      # print(r.text + '\n\n* * *')
-                      #response = gemini.generate_content(
-                      #     model='gemini-2.5-flash', contents='Explain how AI works in a few words'
-                      #)
               except Exception as e:
 
-                  print(f'Error: {e}')
-          elif mclass == "Bike":
-             print(f'Bike! {filename}')
-             prompt = "In this picture is a vehicle on two wheels, determine the type. Answer with a single word."
-             response = gemini.models.generate_content(
-               model='gemini-2.5-flash',
-               contents=[
-                 types.Part.from_bytes(
-                   data=image_data,
-                   mime_type='image/jpeg'
-                 ),
-                 prompt
-                ]
-             )
-             print(f'Vehicle type: {response.text}\n\n* * *')
+                  self.log(f'Error: {e}')
+          elif mclass == 'Bike':
+             pass
+             # self.log(f'Bike! {filename}')
+             # response = ask_gemini('In this picture is a vehicle on two wheels, determine the type. Answer with a single word.', image_data)
+             #  imageelf.log(f'Vehicle type: {response.text}\n\n* * *')
 
-          elif mclass == "Human":
-              print(f'Human! {filename}')
-              prompt = "In this picture is a human. Can you also see a dog? Answer yes or no"
-              response = gemini.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=[
-                  types.Part.from_bytes(
-                    data=image_data,
-                    mime_type='image/jpeg'
-                  ),
-                  prompt
-                ]
-              )
-              print(f'Is there a dog: {response.text}\n\n* * *')
+          elif mclass == 'Human':
+              pass
+              # self.log(f'Human! {filename}')
+              # response = ask_gemini('In this picture is a human. Can you also see a dog? Answer yes or no', image_data)
+              # self.log(f'Is there a dog: {response.text}\n\n* * *')
           else:
-             print(f'Ignored: {mclass}')
+             self.log(f'Ignored: {mclass}')
       else:
           # Tell why we didn't process
-          # print(f'Ignored: {"" if is_completed  else "in"}complete, {"" if image_data else "no "}image, {"" if "classes" in jdata else "no "}classes')
+          # self.log(f'Ignored: {"" if is_completed  else "in"}complete, {"" if image_data else "no "}image, {"" if "classes" in jdata else "no "}classes')
           # Dump payload
-          # print(f'Ignored: {msg.payload}')
+          # self.log(f'Ignored: {msg.payload}')
           pass
 
 if __name__ == '__main__':
+
+   signal(SIGINT, handle_sigint)
 
    # Preload environment settings
    load_dotenv('environment.env')
@@ -292,33 +312,28 @@ if __name__ == '__main__':
 
    # Get settings from commandline
    parser = argparse.ArgumentParser(description = 'Send Best snapshots to Gemini')
-   parser.add_argument('-k', '--api_key', type=str, required=True, default = os.getenv('GEMINI_API_KEY', help='Gemini API key for authentication')
-   parser.add_argument('-u', '--mqtt_username', type=str, required=True, default = os.getenv('MQTT_USER'), help='Username for MQTT broker')
-   parser.add_argument('-p', '--mqtt_password', type=str, required=True, default = os.getenv('MQTT_PASS'), help='Password for MQTT broker')
-   parser.add_argument('-h', '--mqtt_host', type=str, required=True, default = os.getenv('MQTT_HOST'), help='Hostname or IP address of MQTT broker')
-   parser.add_argument('-t', '--mqtt_topic', type=str, required=True, default = os.getenv('MQTT_TOPIC', 'track_topic'), help='Hostname or IP address of MQTT broker')
+   parser.add_argument('-k', '--api_key', type=str, required=False, default = os.getenv('GEMINI_API_KEY'), help='Gemini API key for authentication')
+   parser.add_argument('-u', '--mqtt_username', type=str, required=False, default = os.getenv('MQTT_USER'), help='Username for MQTT broker')
+   parser.add_argument('-p', '--mqtt_password', type=str, required=False, default = os.getenv('MQTT_PASS'), help='Password for MQTT broker')
+   parser.add_argument('-b', '--mqtt_host', type=str, required=False, default = os.getenv('MQTT_HOST'), help='Hostname or IP address of MQTT broker')
+   parser.add_argument('-t', '--mqtt_topic', type=str, required=False, default = os.getenv('MQTT_TOPIC', 'track_topic'), help='Hostname or IP address of MQTT broker')
+   parser.add_argument('-s', '--storage', type=str, required=False, default = os.getenv('IMAGE_PATH', 'images'), help='Path to storage location. Will be created if it doesn\t exist')
    args = parser.parse_args()
-
-   # 1 - Initialize Gemini connection
-   #     See: https://ai.google.dev/gemini-api/docs/api-key#set-api-env-var
 
    print('Initializing genai...')
    gemini = genai.Client(api_key = args.api_key)
 
    print('Initializing snapshot-storage...')
-   storage = FileStorage('images')
-   signal(SIGINT, storage.stop)
+   storage = FileStorage(args.storage)
 
    # See: https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
    print('Initializing mqtt connection...')
-   client = paho.Client(paho.CallbackAPIVersion.VERSION2, userdata = TrackHandler(storage))
+   client = paho.Client(paho.CallbackAPIVersion.VERSION2, userdata = TracksHandler(storage))
    client.on_connect = on_connect
 
    # Note: working with unsecured MQTT for simplicity
    client.username_pw_set(args.mqtt_username, args.mqtt_password)
    client.connect(args.mqtt_host, 1883)
-
-   # setting callbacks, to give a basic feedbacm
    client.on_subscribe = on_subscribe
    client.on_message = on_message
    client.on_publish = on_publish

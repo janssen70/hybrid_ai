@@ -41,9 +41,13 @@ know what to do when you do.
 A number of steps is required to setup the camera. It's recommended to upgrade
 to the latest version first. This script was tested against Axis OS 12.5 and
 12.6. Some API calls must be performed, but fortunately this can be done
-interactively through the Swagger UI.
+interactively through the Swagger UI. This can be found on the device at
+System -> Plain Config.
 
-TBD
+ - [Configure MQTT Broker connection](https://help.axis.com/en-us/axis-os-knowledge-base#mqtt)
+ - [Enable Scene Metadata over MQTT](https://developer.axis.com/analytics/axis-scene-metadata/how-to-guides/scene-metadata-over-mqtt/)
+   The default topic name expected by the script is 'track_topic'
+ - [Enable Best snapshots](https://developer.axis.com/analytics/axis-scene-metadata/how-to-guides/best-snapshot-start/)
 
 Now you can check on commandline if the camera is emitting tracks on MQTT:
 
@@ -75,3 +79,21 @@ steps to fast forward:
    ```
    python3 -m pip install --break-system-packages -r requirements.txt
    ```
+
+Next, you need to collect the relevant parameters for the script. Everything
+can be specified on commandline but it is more convenient to create a settings
+file:
+
+```
+cp environment.env.example environment.env
+nano environment.env
+```
+
+Then, finally, you can run the script:
+
+```
+python3 bestsnapshot_gemini.py
+```
+
+Depending on the scene the camera is looking at there may be no output all for
+while. You can play around by uncommenting code in TracksHandler.handle.
