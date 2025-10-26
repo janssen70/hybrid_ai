@@ -1,6 +1,6 @@
 # hybrid_ai
 Send "Best Snapshots" from Axis Scene Analytics to Gemini for further
-analysis. The purpose is to show the use of edge preprocessing and cloud-assisted
+analysis. The purpose is to show the use of edge preprocessing to get the objects and the cloud for
 deeper analysis.
 
 It works by listening to Consolidated Tracks which come with a Best Snapshot.
@@ -9,7 +9,7 @@ Components involved:
 ```mermaid
 flowchart TD
 	C[Camera]
-	M[Mosquitto]
+	M[MQTT Broker]
 	G[Gemini]
 	subgraph hybrid_ai
 	   P[Script]
@@ -26,40 +26,53 @@ It requires a number of things to be set up first. The instructions below take s
 shortcuts. These are fine if you do not regularly use MQTT or Python. You will
 know what to do when you do.
 
-### Gemini account
+## Settings
+The script needs a bunch of parameters, like the Gemini API key and MQTT connection details. All
+can be specified on commandline but it is more convenient to create a settings
+file called ```environment.env```. It will be read by the script at startup.
+
+```
+cp environment.env.example environment.env
+nano environment.env
+```
+
+
+## Gemini account
  - [Get yourself an API key](https://ai.google.dev/gemini-api/docs/api-key)
- - [Make the key available](https://ai.google.dev/gemini-api/docs/api-key#set-api-env-var) by setting an environment variable or modifying the script
+ - [Make the key available](https://ai.google.dev/gemini-api/docs/api-key#set-api-env-var) by setting an environment variable or adjusting ```environment.env```
 
 
-### MQTT Broker
- - You can use public one like [Hive MQ](https://www.hivemq.com/mqtt/public-mqtt-broker/)
+
+## MQTT Broker
+ - You can use a public one like [Hive MQ](https://www.hivemq.com/mqtt/public-mqtt-broker/)
  - This script was tested with a local [Mosquitto](https://mosquitto.org/)
  - On Ubuntu, use this command to install. It will not give you the latest one
    but that's fine
-   ````
+   ```
    sudo apt install mosquitto
    ```
- - An example mosquitto configuration can be found in this repository. Install
+ - You can use the example mosquitto configuration from this repository. Install
    it as follows. It's a bit untidy by overwriting the main mosquitto.conf
    file:
    ```
    sudo cp mosquitto.conf /etc/mosquitto/mosquitto.conf
    ```
- - Initialize the password file with an initial user. Use the credentials as
-   found in the Python script, or use something else and modify the script
+ - Initialize the Mosquitto password file with an initial user. Store the same credentials
+   in the ```environment.env``` file so that the script can find them
    ```
    sudo mosquitto_passwd -c /etc/mosquitto/passwd <username>
    ```
- - If adding more users, do not use the -c argument. Use -h first to see
+ - If adding more users, do not use the -c argument. Use ```mosquitto_passwd -h``` first to see
    details
  - Restart mosquitto
    ```
    sudo systemctl restart mosquitto
    ```
 
-### Camera setup
+
+## Camera setup
 A number of steps is required to setup the camera. It's recommended to upgrade
-to the latest version first. This script was tested against Axis OS 12.5 and
+to the latest Axis OS version first. This script was tested against Axis OS 12.5 and
 12.6. Some API calls must be performed, but fortunately this can be done
 interactively through the Swagger UI. This can be found on the device at
 System -> Plain Config.
@@ -87,11 +100,11 @@ If you're new to Python you may run into some problems. You can take these
 steps to fast forward:
 
  - Some distributions come without pip. It needs to be installed using the
-   package manager.
+   package manager. On Ubuntu:
    ```
    sudo apt install python3-pip
    ```
- - You get an error message that the install may break system packages. This
+ - You may get an error message that the install may break system packages. This
    can be workarounded as follows, but carefully note first you _must_ run
    this _without_ sudo in front so that the modules will be installed locally
    in your user account.  Thus, no system packages will be broken. If you
@@ -100,20 +113,11 @@ steps to fast forward:
    python3 -m pip install --break-system-packages -r requirements.txt
    ```
 
-Next, you need to collect the relevant parameters for the script. Everything
-can be specified on commandline but it is more convenient to create a settings
-file:
-
-```
-cp environment.env.example environment.env
-nano environment.env
-```
 
 Then, finally, you can run the script:
 
 ```
-python3 bestsnapshot_gemini.py
+python3 hybrid_ai.py
 ```
 
-Depending on the scene the camera is looking at there may be no output all for
-while. You can play around by uncommenting code in TracksHandler.handle.
+You can start playing around by terminating the script and modify code in TracksHandler.handle.
