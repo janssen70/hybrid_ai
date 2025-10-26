@@ -1,21 +1,20 @@
-#
-# Simple script for interacting with Gemini
-# Inspired by an example from Robert K. Brown (robert.brown@axis.com)
-#
-# A few things need to be set up for this script to work, steps 1-3 at the bottom
-# Requires the use of consolidated metadata on an Axis camera.
-# More info about that here: https://www.axis.com/developer-community/scene-metadata-integration
+"""
+Simple script for interacting with Gemini
+See: https://ai.google.dev/gemini-api/docs/image-understanding
+Tested against google-genai version 1.46
 
-#  -Install for the local user (so the break-system-packages is not scary)
-#   python3 -m pip install --break-system-packages google-genai paho-mqtt
-# - Tested against google-genai version 1.46
-# - See: https://ai.google.dev/gemini-api/docs/image-understanding
+For convenient experimenting, it takes care of some housekeeping bits:
+- Saving images and text output
+- Prevent overwriting previous results at next run
 
-# Through API:
-# Consolidated tracks:
-# {"data": {"id": "my_publisher", "data_source_key": "com.axis.consolidated_track.v1.beta#1", "mqtt_topic": "track_topic"}}
-# Best snapshots:
+Inspired by an example from Robert K. Brown (robert.brown@axis.com)
 
+A few things need to be set up for this script to work, see accompanying
+README
+
+This file uses a tabwidth of 3 spaces. You may need to adjust either your
+editor or this file.
+"""
 
 import time
 import json
@@ -30,13 +29,11 @@ import atexit
 
 from dotenv import load_dotenv
 
-# import google.generativeai as genai
 from google import genai
 from google.genai import types
 
 import paho.mqtt.client as paho
 from paho import mqtt
-
 
 #-------------------------------------------------------------------------------
 #
@@ -166,6 +163,7 @@ class FileStorage:
             raise Exception(f'Path not writeable: {location}')
 
       self.base = location
+      print(f'Initializing snapshot-storage in {self.base}')
       self.counter_file = os.path.join(location, 'index')
       if os.path.exists(self.counter_file):
          with open(self.counter_file, 'rt') as f:
@@ -238,8 +236,10 @@ class TracksHandler(MQTTMessageHandler):
          best_class = jdata['classes'][0]
          mclass = best_class.get('type')
 
+      mduration = str(jdata['duration'])
+      fduration = float(mduration)
 
-      if is_completed and image_data is not None and mclass is not None:
+      if is_completed and image_data is not None and mclass is not None and fduration > 2.0:
 
           mclassrank = str(best_class['score'])
 
@@ -253,50 +253,36 @@ class TracksHandler(MQTTMessageHandler):
              mcolor = str(best_class['colors'][0]['name'])
              mcolorrank = str(best_class['colors'][0]['score'])
 
-          #display duration of an object in the scene
-          mduration = str(jdata['duration'])
-          fduration = float(mduration)
-
-
           if ((mclass == 'Car') or (mclass == 'Truck') or (mclass == 'Bus') or (mclass == 'Vehicle')):
 
-              try:
-                  # Workaround for odd issue with short-lived objects
-                  # only display metadata if a car has been tracked for more
-                  # than 2 seconds
-                  if fduration > 2:
-                      pass
-                      # print('\nAXIS Metadata Object ID: ' + str(jdata['id']))
-                      # print(f'Vehicle type: {mclass} ({percentage(mclassrank)})')
-                      # if mcolor:
-                      #    print(f'Vehicle color: {mcolor} ({percentage(mcolorrank)})´)
-                      #+ ')\nTime tracked: ' + mduration + ' sec')
-                      # print('Best Snapshot:')
-                      # print(image_data)
+             self.log(f'{mclass}! {filename}')
+             # print('\nAXIS Metadata Object ID: ' + str(jdata['id']))
+             # print(f'Vehicle type: {mclass} ({percentage(mclassrank)})')
+             # if mcolor:
+             #     print(f'Vehicle color: {mcolor} ({percentage(mcolorrank)})')
+             # print('Time tracked: ' + mduration + ' sec')
 
-                      #now for some Gemini magic...
-                      # prompt = 'Please tell me the make, model, trim, color, and estimated year of the ' + mclass + ' shown in this picture, as well as any other interesting characteristics or attributes. Do not share your reasoning. Format your response as succinctly as possible.'
-                      # response = ask_gemini(prompt, image_data)
+             # prompt = 'Please tell me the make, model, trim, color, and estimated year of the ' + mclass + ' shown in this picture, as well as any other interesting characteristics or attributes. Do not share your reasoning. Format your response as succinctly as possible.'
+             # response = ask_gemini(prompt, image_data)
 
-              except Exception as e:
-
-                  self.log(f'Error: {e}')
           elif mclass == 'Bike':
              pass
-             # self.log(f'Bike! {filename}')
+             self.log(f'Bike! {filename}')
              # response = ask_gemini('In this picture is a vehicle on two wheels, determine the type. Answer with a single word.', image_data)
-             #  imageelf.log(f'Vehicle type: {response.text}\n\n* * *')
+             # self.log(f'Vehicle type: {response.text}\n\n* * *')
 
           elif mclass == 'Human':
               pass
-              # self.log(f'Human! {filename}')
+              self.log(f'Human! {filename}')
               # response = ask_gemini('In this picture is a human. Can you also see a dog? Answer yes or no', image_data)
               # self.log(f'Is there a dog: {response.text}\n\n* * *')
+              # Dogs seldom walk close to their owner :( More practical
+              # testcase would be maybe: 'Is this a man or a woman?'
           else:
              self.log(f'Ignored: {mclass}')
       else:
           # Tell why we didn't process
-          # self.log(f'Ignored: {"" if is_completed  else "in"}complete, {"" if image_data else "no "}image, {"" if "classes" in jdata else "no "}classes')
+          self.log(f'Ignored: {"" if is_completed  else "in"}complete, {"" if image_data else "no "}image, {"" if "classes" in jdata else "no "}classes, {"length okay" if fduration > 2.0 else "too short"}')
           # Dump payload
           # self.log(f'Ignored: {msg.payload}')
           pass
@@ -323,11 +309,10 @@ if __name__ == '__main__':
    print('Initializing genai...')
    gemini = genai.Client(api_key = args.api_key)
 
-   print('Initializing snapshot-storage...')
    storage = FileStorage(args.storage)
 
-   # See: https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
    print('Initializing mqtt connection...')
+   # See: https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
    client = paho.Client(paho.CallbackAPIVersion.VERSION2, userdata = TracksHandler(storage))
    client.on_connect = on_connect
 

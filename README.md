@@ -1,7 +1,27 @@
 # hybrid_ai
-Send "Best Snapshots" from Axis Scene Analytics to Gemini for further analysis
+Send "Best Snapshots" from Axis Scene Analytics to Gemini for further
+analysis. The purpose is to show the use of edge preprocessing and cloud-assisted
+deeper analysis.
 
 It works by listening to Consolidated Tracks which come with a Best Snapshot.
+Components involved:
+
+```mermaid
+flowchart TD
+	C[Camera]
+	M[Mosquitto]
+	G[Gemini]
+	subgraph hybrid_ai
+	   P[Script]
+	   S[(Storage)]
+	end
+
+C --> M
+M --> P
+P <--> G
+P --> S
+```
+
 It requires a number of things to be set up first. The instructions below take some
 shortcuts. These are fine if you do not regularly use MQTT or Python. You will
 know what to do when you do.
