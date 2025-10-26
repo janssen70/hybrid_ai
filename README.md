@@ -2,7 +2,7 @@
 Send "Best Snapshots" from Axis Scene Analytics to Gemini for further analysis
 
 It works by listening to Consolidated Tracks which come with a Best Snapshot.
-It requires a number of things to be set up. The instructions below take some
+It requires a number of things to be set up first. The instructions below take some
 shortcuts. These are fine if you do not regularly use MQTT or Python. You will
 know what to do when you do.
 
@@ -45,17 +45,22 @@ interactively through the Swagger UI.
 
 TBD
 
+Now you can check on commandline if the camera is emitting tracks on MQTT:
+
+```
+mosquitto_sub -h 127.0.0.1 -t track_topic -u <mqtt_username> -P <mqtt_password>
+```
+
 
 ## Python setup
-Some non-standard modules are required to make use of MQTT and Gemini. Install
-as follows:
+Some non-standard modules are required. Install as follows:
 
 ```
 python3 -m pip install -r requirements.txt
 ```
 
 If you're new to Python you may run into some problems. You can take these
-steps to solve quickly without learning to understand virtual environments:
+steps to fast forward:
 
  - Some distributions come without pip. It needs to be installed using the
    package manager.
@@ -65,7 +70,8 @@ steps to solve quickly without learning to understand virtual environments:
  - You get an error message that the install may break system packages. This
    can be workarounded as follows, but carefully note first you _must_ run
    this _without_ sudo in front so that the modules will be installed locally
-   in your user account.  Thus, no system packages will be broken
+   in your user account.  Thus, no system packages will be broken. If you
+   already typed 'sudo', remove it, then copy/paste this command:
    ```
    python3 -m pip install --break-system-packages -r requirements.txt
    ```
