@@ -7,7 +7,7 @@ For convenient experimenting, it takes care of some housekeeping bits:
 - Saving images and text output
 - Prevent overwriting previous results at next run
 
-Inspired by an example from Robert K. Brown (robert.brown@axis.com)
+Gemini- and MQTT-part nspired by an example from Robert K. Brown (robert.brown@axis.com)
 
 A few things need to be set up for this script to work, see accompanying
 README
