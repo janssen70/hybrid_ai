@@ -1,6 +1,6 @@
 # hybrid_ai
 Send "Best Snapshots" from Axis Scene Analytics to Gemini for further
-analysis. The purpose is to show the use of edge preprocessing to get the objects and the cloud for
+analysis. The purpose is to show the use of edge preprocessing to get the objects and then use the cloud for
 deeper analysis.
 
 It works by listening to Consolidated Tracks which come with a Best Snapshot.
@@ -21,6 +21,9 @@ M --> P
 P <--> G
 P --> S
 ```
+
+This example assumes Linux but can be made to run in WSL, some notes at the end of this file. 
+Tested on Ubuntu 22 and Python 3.10 and 3.13
 
 It requires a number of things to be set up first. The instructions below take some
 shortcuts. These are fine if you do not regularly use MQTT or Python. You will
@@ -45,7 +48,7 @@ nano environment.env
 
 ## MQTT Broker
  - You can use a public one like [Hive MQ](https://www.hivemq.com/mqtt/public-mqtt-broker/)
- - This script was tested with a local [Mosquitto](https://mosquitto.org/)
+ - This script was tested with a local [Mosquitto](https://mosquitto.org/). Instructions below are for installing Mosquitto.
  - On Ubuntu, use this command to install. It will not give you the latest one
    but that's fine
    ```
@@ -121,3 +124,7 @@ python3 hybrid_ai.py
 ```
 
 You can start playing around by terminating the script and modify code in TracksHandler.handle.
+
+## WSL (Windows Subsystem for Linux)
+To use Windows Subsystem for Linux in combination with a local Mosquitto install, mirrored networking mode is to be recommended so that the camera can connect to the broker. 
+You can use the [setup instruction here](https://github.com/janssen70/datacollection/tree/main/wsl), instead of port 5080, use 1883 for testing
