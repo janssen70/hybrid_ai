@@ -31,8 +31,9 @@ know what to do when you do.
 
 ## Settings
 The script needs a bunch of parameters, like the Gemini API key and MQTT connection details. All
-can be specified on commandline but it is more convenient to create a settings
-file called ```environment.env```. It will be read by the script at startup.
+can be specified on commandline but it is more convenient to create a settings file called 
+```environment.env```. It will be read by the script at startup. Copy the example to get started 
+and adjust it to your local needs:
 
 ```
 cp environment.env.example environment.env
@@ -126,5 +127,7 @@ python3 hybrid_ai.py
 You can start playing around by terminating the script and modify code in TracksHandler.handle.
 
 ## WSL (Windows Subsystem for Linux)
-To use Windows Subsystem for Linux in combination with a local Mosquitto install, mirrored networking mode is to be recommended so that the camera can connect to the broker. 
-You can use the [setup instruction here](https://github.com/janssen70/datacollection/tree/main/wsl), instead of port 5080, use 1883 for testing
+To run this example on Windows Subsystem for Linux using a local Mosquitto install, it's advised to use 
+"mirrored networking mode". This allows the camera to reach the broker from the outside, through the Windows host.
+You can use the [setup instruction here](https://github.com/janssen70/datacollection/tree/main/wsl), 
+instead of port 5080 mentioned there, use 1883 for testing
