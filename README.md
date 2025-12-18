@@ -111,7 +111,7 @@ steps to fast-forward:
    ```
    sudo apt install python3-pip
    ```
- - You may get an error message that the install may break system packages. This
+ - You may get an error message stating that the install may break system packages. This
    can be workarounded as follows, but carefully note first you _must_ run
    this _without_ sudo in front so that the modules will be installed locally
    in your user account.  That way, no system packages will be broken despite
@@ -131,8 +131,99 @@ python3 hybrid_ai.py
 
 You can start playing around by terminating the script and modify code in TracksHandler.handle.
 
-## WSL (Windows Subsystem for Linux)
+## Deployment alternatives
+
+The following sections describe some deployment alternatives: 
+
+- The use of MQTT over Websockets
+- Running this example on Windows WSL
+
+These aspects have nothing to do with the script itself. However, such things can be, mildly phrased, 
+cumbersome to get right and there is a good chance it has relevance for at least some of the readers.
+
+### MQTT over Websockets
+The Axis devices support tunneling MQTT over (secure) websockets. In case you already have a secured webserver in place 
+this is great to achieve several benefits at once:
+
+- Secure traffic
+- No additional certificate management
+- No additional open ports and/or firewall configuration work
+
+The supplied Mosquitto configuration already enables listening for websocket traffic. The only now required is 
+to configure your webserver to proxy a url for mqtt to the Mosquitto backend. Let's chose ```wss://<yourdomain>>/mqtt/```. 
+In case of nginx the server configuration will look like:
+
+```nginx
+ upstream my_mqtt_server {
+    server localhost:9001;
+ }
+
+server {
+    listen 443 ssl;
+    server_name <yourdomain>;
+	...
+	// All the other configuration
+	...
+    location /mqtt/ {
+       proxy_pass http://my_mqtt_server;
+       proxy_http_version 1.1;
+       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Connection "upgrade";
+       proxy_set_header Host $host;
+    }
+}
+```
+
+### WSL (Windows Subsystem for Linux)
 To run this example on Windows Subsystem for Linux using a local Mosquitto install, it's advised to use 
-"mirrored networking mode". This allows the camera to reach the broker from the outside, through the Windows host.
-You can use the [setup instruction here](https://github.com/janssen70/datacollection/tree/main/wsl), 
-instead of port 5080 mentioned there, use 1883 for testing
+"mirrored networking mode". 
+
+Mirrored network mode allows the Windows host and Linux virtual machine to share the same external IP 
+address. This enables the camera to reach the broker from the outside, through the Windows host into 
+the Linux guest.
+
+It is enabled by creating a configuration file in 
+a specific location. To get there, type %UserProfile% in the Windows Explorer location bar.
+
+Here, create a file `.wslconfig`:
+
+```ini
+[wsl2]
+networkingMode = mirrored
+```
+
+## Installation
+- Enable WSL by opening cmd.exe or Powershell as Administrator and type `wsl
+  --install`
+- Install a Linux distribution through Microsoft app store. This script was tested on Ubuntu 24.04 on WSL
+- Note: After download, in case your windows configuration uses another drive
+  than C: for your Downloads folder, you will run into a problem when starting Linux. If so, after download immediately
+  move the app to C:. This is a simple task, go to Installed Apps, select the Linux app and chose ‘Move’.
+- Configure mirrored networking (see above)
+- Start WSL by double clicking the Ubuntu icon
+
+## Connectivity check
+**Important:** One gotcha is that despite the mirroring, he
+Linux side is not reachable on the Windows side using the external IP address. You need to use
+127.0.0.1 (localhost) instead. From other machines however, one can reach the
+services running in the WSL Linux without problem, using the IP address of the
+Windows host.
+
+Perform a basic connectivity check directly after install so that the networking part can be ruled out later.
+On Ubuntu, use Python to start an ad-hoc webserver. It makes sense to make it use
+port 1883 as that is the port that will be used by Mosquitto. But any port will do, as long as you use the same number on the Windows side.
+For "well known" portnumbers, like 80 for web, you need to type ```sudo``` in front of the command.
+```
+python3 -m http.server -b 0.0.0.0 1883
+```
+
+On the Windows host, open Windows Powershell and try:
+
+```cmd
+curl http://127.0.0.1:1883
+```
+
+Or use the browser and type the url there. This should yield some filelist content of the
+directory where the http server was started. When there is an error instead, try to
+solve this first. Then try the same from another host, now using the
+external IP address of the Windows device. Kill the http.server program before continuing with Mosquitto install.
