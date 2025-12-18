@@ -4,16 +4,16 @@ See: https://ai.google.dev/gemini-api/docs/image-understanding
 Tested against google-genai version 1.46
 
 For convenient experimenting, it takes care of some housekeeping bits:
+
 - Saving images and text output
 - Prevent overwriting previous results at next run
 
-Gemini- and MQTT-part nspired by an example from Robert K. Brown (robert.brown@axis.com)
+Gemini- and MQTT-part inspired by an example from Robert K. Brown (robert.brown@axis.com)
 
 A few things need to be set up for this script to work, see accompanying
-README
+README file.
 
-This file uses a tabwidth of 3 spaces. You may need to adjust either your
-editor or this file.
+Note: This file uses a tabwidth of 3 spaces.
 """
 
 import time
@@ -144,7 +144,7 @@ def on_message(client, userdata : MQTTMessageHandler, msg : mqtt.client.MQTTMess
 class FileStorage:
    """
    Straightforward logic to manage the snapshots when the numbers run into the
-   thousands. It creates a subdirectory per thousand snapshots
+   thousands. It creates a subdirectory per 1024 snapshots
 
    It also tries to restart where it got Ctrl-C'ed last time. YMMV
    """
@@ -253,6 +253,10 @@ class TracksHandler(MQTTMessageHandler):
              mcolor = str(best_class['colors'][0]['name'])
              mcolorrank = str(best_class['colors'][0]['score'])
 
+          #
+          # Experimentation area. Start making detection modifications here
+          #
+          
           if ((mclass == 'Car') or (mclass == 'Truck') or (mclass == 'Bus') or (mclass == 'Vehicle')):
 
              self.log(f'{mclass}! {filename}')
