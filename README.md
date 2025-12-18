@@ -158,8 +158,9 @@ this is great to achieve several benefits at once:
 - No additional open ports and/or firewall configuration work
 
 The supplied Mosquitto configuration already enables listening for websocket traffic. The only now required is 
-to configure your webserver to proxy a url for mqtt to the Mosquitto backend. Let's chose ```wss://<yourdomain>>/mqtt/```. 
-In case of nginx the server configuration will look like:
+to configure your webserver to proxy a url to the Mosquitto backend. Let's chose ```wss://<yourdomain>>/mqtt/```. 
+This is the url that you will need to configure on the device. For the webserver, in case of ```nginx``` the 
+configuration will look like:
 
 ```nginx
  upstream my_mqtt_server {
@@ -181,7 +182,7 @@ server {
     }
 }
 ```
-
+For Apache or other webservers the details will of course be different.
 
 
 ### WSL (Windows Subsystem for Linux)
