@@ -24,7 +24,13 @@ P --> S
 ```
 
 This example assumes Linux but can be made to run in WSL, some notes at the end of this file. 
-Tested on Ubuntu 22 and 24, using Python 3.10, 3.11 and 3.13
+Tested on Ubuntu 22 and 24, using Python 3.10, 3.11 and 3.13. Next to working with Consolidated 
+Tracks it does an attempt to bring some efficiency:
+
+
+- Save your results (images and classifications)
+- Continue file numbering between runs
+
 
 It requires a number of components to be set up first. The instructions below take
 shortcuts. These are fine if you do not regularly use MQTT or Python. Adjust according 
@@ -141,6 +147,8 @@ The following sections describe some deployment alternatives:
 These aspects have nothing to do with the script itself. However, such things can be, mildly phrased, 
 cumbersome to get right and there is a good chance it has relevance for at least some of the readers.
 
+
+
 ### MQTT over Websockets
 The Axis devices support tunneling MQTT over (secure) websockets. In case you already have a secured webserver in place 
 this is great to achieve several benefits at once:
@@ -173,6 +181,8 @@ server {
     }
 }
 ```
+
+
 
 ### WSL (Windows Subsystem for Linux)
 To run this example on Windows Subsystem for Linux using a local Mosquitto install, it's advised to use 
